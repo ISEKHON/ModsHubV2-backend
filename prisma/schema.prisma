@@ -1,0 +1,282 @@
+// =============================================================================
+// ModsHubV2 — Prisma Schema
+// Database: PostgreSQL
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  owner
+  admin
+  modder
+  member
+}
+
+enum UserStatus {
+  active
+  banned
+}
+
+enum AccessType {
+  free
+  paid
+  unlock_code
+}
+
+enum ModStatus {
+  published
+  pending
+  rejected
+  deleted
+}
+
+enum ReportReason {
+  malware
+  stolen_content
+  broken_mod
+  misleading_info
+  copyright
+  inappropriate
+  other
+}
+
+enum ReportStatus {
+  open
+  investigating
+  resolved
+  dismissed
+}
+
+enum ChatStatus {
+  active
+  paid
+  archived
+  closed
+}
+
+enum NotificationType {
+  chat
+  review
+  like
+  mod_approved
+  mod_rejected
+  ban
+  report
+  system
+}
+
+enum ActivityType {
+  download
+  unlock
+  register
+  upload
+  ban
+  feature
+  delete
+  review
+  chat
+  like
+  report
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String     @id @default(uuid())
+  username      String     @unique
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  displayName   String     @map("display_name")
+  bio           String?    @default("")
+  avatarUrl     String?    @map("avatar_url")
+  role          Role       @default(member)
+  status        UserStatus @default(active)
+  banReason     String?    @map("ban_reason")
+  isVerified    Boolean    @default(false) @map("is_verified")
+  verifiedAt    DateTime?  @map("verified_at")
+  verifiedById  String?    @map("verified_by_id")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  // Self-relation: who verified this user
+  verifiedBy    User?  @relation("VerifiedByUser", fields: [verifiedById], references: [id])
+  verifiedUsers User[] @relation("VerifiedByUser")
+
+  // Authored mods
+  mods          Mod[]
+
+  // Interactions
+  reviews       Review[]
+  likes         Like[]
+
+  // Chat relations
+  sentChats     Chat[]        @relation("BuyerChats")
+  receivedChats Chat[]        @relation("ModderChats")
+  chatMessages  ChatMessage[]
+
+  // System
+  notifications Notification[]
+  reports       Report[]       @relation("ReporterReports")
+  resolvedReports Report[]     @relation("ResolverReports")
+  activities    ActivityLog[]
+
+  @@map("users")
+}
+
+model Mod {
+  id               String     @id @default(uuid())
+  title            String
+  description      String
+  shortDescription String     @map("short_description")
+  game             String     // "fs22" or "fs25"
+  version          String     @default("1.0.0")
+  authorId         String     @map("author_id")
+  tags             String[]   @default([])
+  iconUrl          String     @map("icon_url")
+  gallery          String[]   @default([])
+  accessType       AccessType @default(free) @map("access_type")
+  price            Float?     @default(0)
+  unlockCode       String?    @map("unlock_code")
+  downloadUrl      String     @map("download_url")
+  category         String
+  fileSizeMb       Float      @default(0) @map("file_size_mb")
+  downloads        Int        @default(0)
+  views            Int        @default(0)
+  shares           Int        @default(0)
+  likesCount       Int        @default(0) @map("likes_count")
+  featured         Boolean    @default(false)
+  status           ModStatus  @default(published)
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  author  User     @relation(fields: [authorId], references: [id])
+  reviews Review[]
+  likes   Like[]
+  chats   Chat[]
+  reports Report[]
+
+  @@map("mods")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  modId     String   @map("mod_id")
+  userId    String   @map("user_id")
+  rating    Int      // 1-5
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mod  Mod  @relation(fields: [modId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([modId, userId]) // one review per user per mod
+  @@map("reviews")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  modId     String   @map("mod_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  mod  Mod  @relation(fields: [modId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([modId, userId]) // one like per user per mod
+  @@map("likes")
+}
+
+model Chat {
+  id        String     @id @default(uuid())
+  modId     String     @map("mod_id")
+  buyerId   String     @map("buyer_id")
+  modderId  String     @map("modder_id")
+  status    ChatStatus @default(active)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  mod      Mod           @relation(fields: [modId], references: [id], onDelete: Cascade)
+  buyer    User          @relation("BuyerChats", fields: [buyerId], references: [id])
+  modder   User          @relation("ModderChats", fields: [modderId], references: [id])
+  messages ChatMessage[]
+
+  @@unique([modId, buyerId]) // one chat per user per mod
+  @@map("chats")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  chatId    String   @map("chat_id")
+  senderId  String   @map("sender_id")
+  content   String?
+  imageUrl  String?  @map("image_url")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id])
+
+  @@map("chat_messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Report {
+  id           String       @id @default(uuid())
+  modId        String       @map("mod_id")
+  reporterId   String       @map("reporter_id")
+  reason       ReportReason
+  details      String?
+  status       ReportStatus @default(open)
+  adminNotes   String?      @map("admin_notes")
+  resolvedById String?      @map("resolved_by_id")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  resolvedAt   DateTime?    @map("resolved_at")
+
+  mod        Mod   @relation(fields: [modId], references: [id], onDelete: Cascade)
+  reporter   User  @relation("ReporterReports", fields: [reporterId], references: [id])
+  resolvedBy User? @relation("ResolverReports", fields: [resolvedById], references: [id])
+
+  @@unique([modId, reporterId]) // one active report per user per mod
+  @@map("reports")
+}
+
+model ActivityLog {
+  id        String       @id @default(uuid())
+  type      ActivityType
+  message   String
+  userId    String?      @map("user_id")
+  metadata  Json?        @default("{}")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("activity_log")
+}
