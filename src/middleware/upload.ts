@@ -1,5 +1,6 @@
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import type { Request } from 'express';
 
@@ -28,7 +29,9 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 function createStorage(subDir: string) {
   return multer.diskStorage({
     destination: (_req: Request, _file, cb) => {
-      cb(null, path.join(process.cwd(), 'uploads', subDir));
+      const uploadDir = path.join(process.cwd(), 'uploads', subDir);
+      fs.mkdirSync(uploadDir, { recursive: true });
+      cb(null, uploadDir);
     },
     filename: (_req: Request, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
