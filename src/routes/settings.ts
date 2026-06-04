@@ -179,7 +179,8 @@ router.post(
           email: true,
           role: true,
           isVerified: true,
-          isBanned: true,
+          status: true,
+          banReason: true,
           createdAt: true,
         },
       });
