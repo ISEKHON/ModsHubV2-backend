@@ -280,3 +280,16 @@ model ActivityLog {
 
   @@map("activity_log")
 }
+
+model SiteSettings {
+  id                   String   @id @default(uuid())
+  maintenanceMode      Boolean  @default(false) @map("maintenance_mode")
+  registrationOpen     Boolean  @default(true) @map("registration_open")
+  modApprovalRequired  Boolean  @default(false) @map("mod_approval_required")
+  announcement         String   @default("")
+  announcementActive   Boolean  @default(false) @map("announcement_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("site_settings")
+}

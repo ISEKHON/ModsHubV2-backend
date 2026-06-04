@@ -70,6 +70,13 @@ router.post(
     try {
       const { username, email, password, displayName } = req.body;
 
+      // Check if registration is open
+      const settings = await prisma.siteSettings.findFirst();
+      if (settings && !settings.registrationOpen) {
+        res.status(403).json({ error: 'Registration is currently closed' });
+        return;
+      }
+
       // Check uniqueness of username and email in parallel
       const [existingUsername, existingEmail] = await Promise.all([
         prisma.user.findUnique({ where: { username } }),

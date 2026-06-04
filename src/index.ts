@@ -50,6 +50,7 @@ import reviewsRouter from './routes/reviews.js';
 import likesRouter from './routes/likes.js';
 import reportsRouter from './routes/reports.js';
 import activityRouter from './routes/activity.js';
+import settingsRouter from './routes/settings.js';
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', usersRouter);
@@ -60,6 +61,7 @@ app.use('/api/reviews', reviewsRouter);
 app.use('/api/likes', likesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/activity', activityRouter);
+app.use('/api/settings', settingsRouter);
 
 // ---------------------------------------------------------------------------
 // Global error handler
