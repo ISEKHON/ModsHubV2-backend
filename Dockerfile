@@ -3,14 +3,20 @@ FROM node:20-slim AS build
 
 WORKDIR /app
 
+# Install OpenSSL
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
 COPY package*.json ./
 
+# Copy prisma schema BEFORE npm ci (needed for postinstall)
+COPY prisma ./prisma
+
+# Install dependencies (this will run postinstall and generate Prisma client)
 RUN npm ci
 
+# Copy rest of the application
 COPY . .
-
-# Generate Prisma client
-RUN npx prisma generate
 
 # Build app
 RUN npm run build
