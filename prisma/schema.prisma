@@ -168,6 +168,14 @@ model Mod {
   chats   Chat[]
   reports Report[]
 
+  @@index([status, createdAt])
+  @@index([status, featured])
+  @@index([status, downloads])
+  @@index([status, views])
+  @@index([status, likesCount])
+  @@index([game, status])
+  @@index([category, status])
+  @@index([authorId])
   @@map("mods")
 }
 
@@ -245,6 +253,7 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRead, createdAt])
   @@map("notifications")
 }
 
@@ -278,6 +287,8 @@ model ActivityLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  @@index([userId, type])
+  @@index([type, createdAt])
   @@map("activity_log")
 }
 

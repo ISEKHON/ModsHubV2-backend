@@ -401,7 +401,8 @@ router.get(
       if (req.user) {
         const userId = req.user.id;
 
-        const [likeRecord, reviewRecord, reportRecord] = await Promise.all([
+        // Optimize: Run all queries in parallel instead of separate awaits
+        const [likeRecord, reviewRecord, reportRecord, unlockLog] = await Promise.all([
           prisma.like.findUnique({
             where: { modId_userId: { modId: id, userId } },
           }),
@@ -411,23 +412,22 @@ router.get(
           prisma.report.findFirst({
             where: { modId: id, reporterId: userId },
           }),
+          // Only check unlock log for unlock_code mods
+          mod.accessType === 'unlock_code'
+            ? prisma.activityLog.findFirst({
+                where: {
+                  userId,
+                  type: 'unlock',
+                  metadata: { path: ['modId'], equals: id },
+                },
+              })
+            : Promise.resolve(null),
         ]);
 
         userLiked = !!likeRecord;
         userReviewed = !!reviewRecord;
         userReported = !!reportRecord;
-
-        // For unlock_code mods, check if user previously downloaded (activity log)
-        if (mod.accessType === 'unlock_code') {
-          const unlockLog = await prisma.activityLog.findFirst({
-            where: {
-              userId,
-              type: 'unlock',
-              metadata: { path: ['modId'], equals: id },
-            },
-          });
-          userUnlocked = !!unlockLog;
-        }
+        userUnlocked = !!unlockLog;
       }
 
       // Strip the raw reviews array — we've summarised it into avgRating / totalReviews
