@@ -478,7 +478,15 @@ router.post(
       const data = req.body as z.infer<typeof createModSchema>;
       const user = req.user!;
 
-      const status = isPrivileged(user.role) ? 'published' : 'pending';
+      // Check site settings for mod approval requirement
+      const settings = await prisma.siteSettings.findFirst();
+      const requiresApproval = settings?.modApprovalRequired ?? false;
+
+      // Admins/owners can publish directly, others follow approval setting
+      let status: 'published' | 'pending' = 'published';
+      if (!isPrivileged(user.role) && requiresApproval) {
+        status = 'pending';
+      }
 
       const mod = await prisma.mod.create({
         data: {
@@ -506,7 +514,7 @@ router.post(
       await prisma.activityLog.create({
         data: {
           type: 'upload',
-          message: `${user.username} uploaded mod "${mod.title}"`,
+          message: `${user.username} uploaded mod "${mod.title}" (${status})`,
           userId: user.id,
           metadata: { modId: mod.id },
         },
