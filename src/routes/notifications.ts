@@ -123,6 +123,40 @@ router.put(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PUT /read-by-chat  — Mark all notifications from a specific chat as read.
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.put(
+  '/read-by-chat',
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = req.user!;
+      const { chatId } = req.body;
+
+      if (!chatId) {
+        res.status(400).json({ error: 'Chat ID is required' });
+        return;
+      }
+
+      const result = await prisma.notification.updateMany({
+        where: {
+          userId: user.id,
+          isRead: false,
+          link: { contains: `/chats/${chatId}` },
+        },
+        data: { isRead: true },
+      });
+
+      res.json({ count: result.count });
+    } catch (err) {
+      console.error('[PUT /notifications/read-by-chat]', err);
+      res.status(500).json({ error: 'Failed to mark chat notifications as read' });
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PUT /:id/read  — Mark a single notification as read.
 // ─────────────────────────────────────────────────────────────────────────────
 

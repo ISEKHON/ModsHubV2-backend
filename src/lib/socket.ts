@@ -89,6 +89,7 @@ export function setupSocketIO(httpServer: HttpServer): SocketIOServer {
 
     socket.on('chat:typing', (data: { chatId: string; isTyping: boolean }) => {
       socket.to(`chat:${data.chatId}`).emit('chat:typing', {
+        chatId: data.chatId,
         userId: user.id,
         username: user.username,
         isTyping: data.isTyping,

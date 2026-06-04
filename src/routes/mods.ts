@@ -806,7 +806,7 @@ router.post(
 router.get(
   '/admin/all',
   requireAuth,
-  requireRole('admin', 'owner'),
+  requireRole('modder', 'admin', 'owner'),
   validate({ query: adminBrowseQuerySchema }),
   async (req: Request, res: Response): Promise<void> => {
     try {
@@ -814,6 +814,10 @@ router.get(
         (res.locals.validated?.query ?? req.query) as z.infer<typeof adminBrowseQuerySchema>;
 
       const where: any = {};
+
+      if (req.user?.role === 'modder' && req.user?.id) {
+        where.authorId = req.user.id;
+      }
 
       if (status) where.status = status;
       if (game) where.game = game;
